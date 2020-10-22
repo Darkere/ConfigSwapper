@@ -1,9 +1,6 @@
 package com.darkere.configswapper;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.google.gson.*;
 import net.minecraftforge.fml.loading.FMLPaths;
 
 import java.io.File;
@@ -38,11 +35,11 @@ public class Utils {
     }
 
     public static String readWriteModeToJson(String mode) {
-        File packModeFile =  new File ("mode.json");
+        File packModeFile = new File("mode.json");
         JsonParser parser = new JsonParser();
 
         try {
-            if(!packModeFile.exists()){
+            if (!packModeFile.exists()) {
                 packModeFile.createNewFile();
                 FileWriter writer = new FileWriter(packModeFile);
                 writer.write("{}");
@@ -53,9 +50,11 @@ public class Utils {
             JsonObject json = parser.parse(new FileReader(packModeFile)).getAsJsonObject();
             if (json != null) {
                 if (mode == null) {
-                    mode = json.get("mode").getAsString();
-                    if (mode == null) {
+                    JsonElement written = json.get("mode");
+                    if (written == null) {
                         mode = "none";
+                    } else {
+                        mode = written.getAsString();
                     }
                 }
                 json.addProperty("mode", mode);
