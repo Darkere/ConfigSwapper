@@ -12,7 +12,7 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
 import net.minecraft.command.ISuggestionProvider;
-import net.minecraft.server.integrated.IntegratedServer;
+import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.fml.network.PacketDistributor;
@@ -46,7 +46,7 @@ public class ChangeModeCommand {
         reloader.readMode();
         reloader.setConfigs();
         Utils.readWriteModeToJson(mode);
-        if (!(context.getSource().getServer() instanceof IntegratedServer)) {
+        if (context.getSource().getServer() instanceof DedicatedServer) {
             context.getSource().getServer().getPlayerList().getPlayers().forEach(
                 player -> ConfigSwapper.INSTANCE.send(PacketDistributor.PLAYER.with(() -> player), new ConfigChangeMessage(mode, backup)));
         }
