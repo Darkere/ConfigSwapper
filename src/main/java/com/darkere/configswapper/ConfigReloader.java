@@ -57,6 +57,10 @@ public class ConfigReloader {
                 LOGGER.warn(first.getModID() + "does not have a config of type " + first.getType());
                 continue;
             }
+            if(config.getConfigData() == null){
+                LOGGER.debug(first.getModID() + " " + first.getType() + " has no data. Client config on server?");
+                continue;
+            }
 
             //read config
             List<String> lines = readAllLinesInConfig(config.getFullPath());
