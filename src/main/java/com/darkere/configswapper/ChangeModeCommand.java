@@ -41,15 +41,18 @@ public class ChangeModeCommand {
             Message message = new LiteralMessage(mode + " is not an available mode");
             throw new CommandSyntaxException(new SimpleCommandExceptionType(message), message);
         }
+
         context.getSource().sendFeedback(new StringTextComponent("Changing mode to " + mode + ". Expect a large Lag spike"), true);
-        ConfigReloader reloader = new ConfigReloader(mode, backup);
-        reloader.readMode();
-        reloader.setConfigs();
+
+        ModeConfig modeConfig = new ModeConfig(mode, backup);
+        modeConfig.applyMode();
         Utils.readWriteModeToJson(mode);
+
         if (context.getSource().getServer() instanceof DedicatedServer) {
             context.getSource().getServer().getPlayerList().getPlayers().forEach(
                 player -> ConfigSwapper.INSTANCE.send(PacketDistributor.PLAYER.with(() -> player), new ConfigChangeMessage(mode, backup)));
         }
+
         context.getSource().getServer().getCommandManager().handleCommand(context.getSource(), "reload");
         return Command.SINGLE_SUCCESS;
     }

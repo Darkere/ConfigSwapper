@@ -32,9 +32,8 @@ public class ConfigChangeMessage {
                 Minecraft.getInstance().player.sendMessage(new StringTextComponent("Missing data for config change!. Client configs will be out of sync."), new UUID(0, 0));
                 return;
             }
-            ConfigReloader reloader = new ConfigReloader(data.mode, data.backup);
-            reloader.readMode();
-            reloader.setConfigs();
+            ModeConfig modeConfig = new ModeConfig(data.mode, data.backup);
+            modeConfig.applyMode();
             Utils.readWriteModeToJson(data.mode);
         });
         ctx.get().setPacketHandled(true);

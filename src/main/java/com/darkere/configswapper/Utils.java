@@ -1,16 +1,21 @@
 package com.darkere.configswapper;
 
 import com.google.gson.*;
+import net.minecraftforge.fml.config.ConfigTracker;
+import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.loading.FMLPaths;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Utils {
     public static List<String> readAvailableModes() {
@@ -70,5 +75,24 @@ public class Utils {
             e.printStackTrace();
         }
         return mode;
+    }
+
+    @SuppressWarnings("unchecked")
+    static ConcurrentHashMap<String, Map<ModConfig.Type, ModConfig>> getModConfigsWithReflection() {
+        Field configsByMod = null;
+        try {
+            configsByMod = ConfigTracker.class.getDeclaredField("configsByMod");
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        }
+        if (configsByMod != null) {
+            configsByMod.setAccessible(true);
+            try {
+                return (ConcurrentHashMap<String, Map<ModConfig.Type, ModConfig>>) configsByMod.get(ConfigTracker.INSTANCE);
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+        }
+        return null;
     }
 }
