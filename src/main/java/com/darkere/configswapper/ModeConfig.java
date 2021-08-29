@@ -96,16 +96,17 @@ public class ModeConfig {
 
             //Find Specified Category in config
             for (int i = start; i < lines.size(); i++) {
-                if (lines.get(i).startsWith("[" + category) || lines.get(i).startsWith("[\"" + category)) {
+                String line = lines.get(i).trim();
+                if (line.startsWith("[" + category) || line.startsWith("[\"" + category)) {
                     start = i;
                     break;
                 }
                 if (i == lines.size() - 1) {
-                    LOGGER.warn("Could not find category" + category + " for config change " + configChange);
+                    LOGGER.warn("Could not find category " + category + " for config change " + configChange);
                     return;
                 }
             }
-            //Go to next if not found
+            //Go to next
             category = configChange.getNextCategory();
         }
         boolean found = false;
