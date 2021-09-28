@@ -2,9 +2,12 @@ package com.darkere.configswapper;
 
 import com.electronwill.nightconfig.core.utils.StringUtils;
 import net.minecraftforge.fml.config.ModConfig;
+import org.apache.logging.log4j.LogManager;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 class ConfigValueRepresentation {
     private final String ModID;
@@ -17,9 +20,11 @@ class ConfigValueRepresentation {
 
     ConfigValueRepresentation(String path, String value) {
         boolean replaced = false;
+        Queue<String> characters = new LinkedList<>();
         int index = path.indexOf("\\");
         while (index != -1) {
             StringBuilder builder = new StringBuilder(path);
+            characters.add(String.valueOf(path.charAt(index + 1)));
             builder.replace(index, index + 2, SPECIALSTRING);
             replaced = true;
             path = builder.toString();
@@ -36,12 +41,24 @@ class ConfigValueRepresentation {
         this.value = value;
         if (replaced) {
             for (int i = 0; i < categories.size(); i++) {
-                categories.set(i, categories.get(i).replaceAll(SPECIALSTRING, "."));
+               categories.set(i,reinsertChars(categories.get(i), characters));
             }
-            this.name = name.replaceAll(SPECIALSTRING, ".");
-            this.value = this.value.replaceAll(SPECIALSTRING, ".");
+            this.name = reinsertChars(this.name, characters);
+            this.value = reinsertChars(this.value, characters);
         }
 
+    }
+
+    private String reinsertChars(String text, Queue<String> queue) {
+        while (text.contains(SPECIALSTRING)) {
+            if(queue.peek() == null){
+                LogManager.getLogger().warn("String replacement failed for " + text);
+                return text;
+            }
+            text = text.replace(SPECIALSTRING, queue.poll());
+
+        }
+        return text;
     }
 
     public String getModID() {
