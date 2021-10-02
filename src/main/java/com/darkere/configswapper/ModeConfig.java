@@ -1,6 +1,5 @@
 package com.darkere.configswapper;
 
-import com.electronwill.nightconfig.core.utils.StringUtils;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.loading.FMLPaths;
 import org.apache.logging.log4j.LogManager;
@@ -17,18 +16,10 @@ public class ModeConfig {
     Map<String, List<ConfigValueRepresentation>> configChanges;
     Path configPath;
     Path backupPath;
-    List<String> backupText = new ArrayList<>();
     private static final Logger LOGGER = LogManager.getLogger();
 
-    public ModeConfig(String mode, String backup) {
+    public ModeConfig(String mode) {
         configPath = FMLPaths.CONFIGDIR.get().resolve(ConfigSwapper.MODID + "/" + mode);
-        if (backup != null) {
-            backupPath = FMLPaths.CONFIGDIR.get().resolve(ConfigSwapper.MODID + "/" + backup);
-            if (!backupPath.toFile().exists()) {
-                backupPath.toFile().mkdir();
-            }
-            backupPath = backupPath.resolve("backup.txt");
-        }
         ConfigParser parser = new ConfigParser(configPath);
         configChanges = parser.readModeFromConfigs();
     }
@@ -76,15 +67,10 @@ public class ModeConfig {
             //save config
             try {
                 Files.write(config.getFullPath(), lines, StandardOpenOption.WRITE);
-                if (backupPath != null) {
-                    backupPath.toFile().createNewFile();
-                    Files.write(backupPath, backupText, StandardOpenOption.WRITE);
-                }
             } catch (IOException e) {
                 LOGGER.warn("Could not write to Config file" + config.getFullPath());
                 e.printStackTrace();
             }
-            backupPath = null;
         }
     }
 
@@ -114,7 +100,6 @@ public class ModeConfig {
             String sub = lines.get(i).trim();
             if (sub.startsWith("#")) continue;
             if (sub.startsWith(configChange.getName())) {
-                backupText.add(configChange.getModID() + "." + configChange.getType() + "." + String.join(".", configChange.getCategories()) + "." + sub);
                 lines.set(i, getTabs(depth) + configChange.getName() + " = " + configChange.getValue());
                 found = true;
                 break;

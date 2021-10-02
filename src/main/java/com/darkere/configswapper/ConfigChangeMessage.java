@@ -32,7 +32,7 @@ public class ConfigChangeMessage {
                 Minecraft.getInstance().player.sendMessage(new StringTextComponent("Missing data for config change!. Client configs will be out of sync."), new UUID(0, 0));
                 return;
             }
-            ModeConfig modeConfig = new ModeConfig(data.mode, data.backup);
+            ModeConfig modeConfig = new ModeConfig(data.mode);
             modeConfig.applyMode();
             Utils.readWriteModeToJson(data.mode);
         });

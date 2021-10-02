@@ -41,8 +41,7 @@ public class ConfigSwapper {
         String mode = Utils.readWriteModeToJson(null);
         if (mode == null || !modes.contains(mode)) return;
         LOGGER.info("Applying configs for " + mode + " mode");
-        ModeConfig reloader = new ModeConfig(mode, "Launch Backup");
+        ModeConfig reloader = new ModeConfig(mode);
         reloader.applyMode();
-        LOGGER.info("Configs for " + mode + " have been applied and a launch backup has been created");
     }
 }

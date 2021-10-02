@@ -44,7 +44,7 @@ public class ChangeModeCommand {
 
         context.getSource().sendFeedback(new StringTextComponent("Changing mode to " + mode + ". Expect a large Lag spike"), true);
 
-        ModeConfig modeConfig = new ModeConfig(mode, backup);
+        ModeConfig modeConfig = new ModeConfig(mode);
         modeConfig.applyMode();
         Utils.readWriteModeToJson(mode);
 
