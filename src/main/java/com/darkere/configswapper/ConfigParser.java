@@ -1,6 +1,5 @@
 package com.darkere.configswapper;
 
-import com.electronwill.nightconfig.core.Config;
 import com.electronwill.nightconfig.core.utils.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,13 +12,14 @@ import java.util.*;
 public class ConfigParser {
     private static final Logger LOGGER = LogManager.getLogger();
     private Path path;
-    private Map<String, List<ConfigValueRepresentation>> configChanges  = new HashMap<>();
+    private Map<String, List<ConfigValueRepresentation>> configChanges = new HashMap<>();
+    private String filepath;
 
 
-
-    public ConfigParser(Path path){
+    public ConfigParser(Path path) {
         this.path = path;
     }
+
     public Map<String, List<ConfigValueRepresentation>> readModeFromConfigs() {
         try {
             readFiles(path);
@@ -46,10 +46,23 @@ public class ConfigParser {
                     e.printStackTrace();
                 }
                 if (lines != null) {
+                    checkforCustomPath(lines);
                     readLines(lines, "");
                 }
             }
         });
+    }
+
+    private void checkforCustomPath(List<String> lines) {
+        String line = lines.get(0).trim();
+        if (line.startsWith("customfilepath")) {
+            filepath = line.split("=")[1];
+            lines.remove(0);
+            if(!filepath.startsWith("config") && !filepath.startsWith("serverconfig"))
+                filepath = "custom file Paths need to start with config or serverconfig";
+        } else {
+            filepath = null;
+        }
     }
 
     private void readLines(List<String> lines, String prefix) {
@@ -68,11 +81,14 @@ public class ConfigParser {
             }
             if (!line.contains("=")) continue;
             List<String> elements = StringUtils.split(line, '=');
-            ConfigValueRepresentation rep = new ConfigValueRepresentation((prefix.isEmpty() ? "" : prefix + ".") + elements.get(0).trim(), elements.get(1).trim());
-            if (!configChanges.containsKey(rep.getModID() + rep.getType())) {
-                configChanges.put(rep.getModID() + rep.getType(), new ArrayList<>());
+            ConfigValueRepresentation rep = new ConfigValueRepresentation((prefix.isEmpty() ? "" : prefix + ".") + elements.get(0).trim(), elements.get(1).trim(), filepath);
+            String key = rep.getModID() + rep.getType();
+            if(filepath != null)
+                key = filepath;
+            if (!configChanges.containsKey(key)) {
+                configChanges.put(key, new ArrayList<>());
             }
-            configChanges.get(rep.getModID() + rep.getType()).add(rep);
+            configChanges.get(key).add(rep);
         }
     }
 

@@ -1,7 +1,9 @@
 package com.darkere.configswapper;
 
+import net.minecraft.world.storage.FolderName;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.fml.server.ServerLifecycleHooks;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -15,7 +17,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ModeConfig {
     Map<String, List<ConfigValueRepresentation>> configChanges;
     Path configPath;
-    Path backupPath;
     private static final Logger LOGGER = LogManager.getLogger();
 
     public ModeConfig(String mode) {
@@ -31,32 +32,44 @@ public class ModeConfig {
             return;
         }
 
-        //go through configChanges
+        //go through configChanges for each file
         for (List<ConfigValueRepresentation> configuration : configChanges.values()) {
 
             //Get the first, to read out which config file to apply this change too
             ConfigValueRepresentation first = configuration.get(0);
+            Path configPath;
+            if (first.getCustomPath() == null) {
+                //Get config
+                Map<ModConfig.Type, ModConfig> modConfig = modConfigs.get(first.getModID());
+                if (modConfig == null) {
+                    LOGGER.warn("Cannot find config for mod " + first.getModID());
+                    continue;
+                }
 
-            //Get config
-            Map<ModConfig.Type, ModConfig> modConfig = modConfigs.get(first.getModID());
-            if (modConfig == null) {
-                LOGGER.warn("Cannot find config for mod " + first.getModID());
-                continue;
+                ModConfig config = modConfig.get(first.getType());
+                if (config == null) {
+                    LOGGER.warn(first.getModID() + "does not have a config of type " + first.getType());
+                    continue;
+                }
+
+                if (config.getConfigData() == null) {
+                    LOGGER.debug(first.getModID() + " " + first.getType() + " has no data. Client config on server?");
+                    continue;
+                }
+
+                configPath = config.getFullPath();
+            } else {
+                configPath = getConfigPath(first.getCustomPath());
+                if (configPath == null) {
+                    LOGGER.warn("Could not find config for custom file path " + first.getCustomPath());
+                    continue; //go to next config
+                }
+
             }
 
-            ModConfig config = modConfig.get(first.getType());
-            if (config == null) {
-                LOGGER.warn(first.getModID() + "does not have a config of type " + first.getType());
-                continue;
-            }
-
-            if(config.getConfigData() == null){
-                LOGGER.debug(first.getModID() + " " + first.getType() + " has no data. Client config on server?");
-                continue;
-            }
 
             //read config
-            List<String> lines = readAllLinesInConfig(config.getFullPath());
+            List<String> lines = readAllLinesInConfig(configPath);
             if (lines == null) continue;
 
 
@@ -66,12 +79,27 @@ public class ModeConfig {
 
             //save config
             try {
-                Files.write(config.getFullPath(), lines, StandardOpenOption.WRITE);
+                Files.write(configPath, lines, StandardOpenOption.WRITE);
             } catch (IOException e) {
-                LOGGER.warn("Could not write to Config file" + config.getFullPath());
+                LOGGER.warn("Could not write to Config file" + configPath);
                 e.printStackTrace();
             }
         }
+    }
+
+    private Path getConfigPath(String customPath) {
+        Path path = FMLPaths.GAMEDIR.get().resolve(customPath);
+        if (path.toFile().exists() && path.toFile().isFile()) {
+            return path;
+        }
+
+        Path worldPath = ServerLifecycleHooks.getCurrentServer().func_240776_a_(FolderName.field_237253_i_);
+        path = worldPath.resolve(customPath);
+        if (path.toFile().exists() && path.toFile().isFile()) {
+            return path;
+        }
+
+        return null;
     }
 
     private void replaceConfig(List<String> lines, ConfigValueRepresentation configChange) {

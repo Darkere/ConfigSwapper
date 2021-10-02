@@ -10,15 +10,19 @@ import java.util.List;
 import java.util.Queue;
 
 class ConfigValueRepresentation {
-    private final String ModID;
-    private final ModConfig.Type type;
+    private String ModID;
+    private ModConfig.Type type;
     private String name;
     private final List<String> categories = new ArrayList<>();
     private String value;
     private int count;
     private static final String SPECIALSTRING = String.valueOf(Character.toChars(0x001D));
 
-    ConfigValueRepresentation(String path, String value) {
+    private String customPath;
+
+
+    ConfigValueRepresentation(String path, String value, String customPath) {
+        this.customPath = customPath;
         boolean replaced = false;
         Queue<String> characters = new LinkedList<>();
         int index = path.indexOf("\\");
@@ -30,18 +34,24 @@ class ConfigValueRepresentation {
             path = builder.toString();
             index = path.indexOf("\\");
         }
+
         List<String> strings = StringUtils.split(path, '.');
-        ModID = strings.get(0);
-        strings.remove(0);
-        type = ModConfig.Type.valueOf(strings.get(0).toUpperCase());
-        strings.remove(0);
+
+        if (customPath == null) {
+            ModID = strings.get(0);
+            strings.remove(0);
+            type = ModConfig.Type.valueOf(strings.get(0).toUpperCase());
+            strings.remove(0);
+        }
+
         this.name = strings.get(strings.size() - 1);
         strings.remove(strings.size() - 1);
         categories.addAll(strings);
         this.value = value;
+
         if (replaced) {
             for (int i = 0; i < categories.size(); i++) {
-               categories.set(i,reinsertChars(categories.get(i), characters));
+                categories.set(i, reinsertChars(categories.get(i), characters));
             }
             this.name = reinsertChars(this.name, characters);
             this.value = reinsertChars(this.value, characters);
@@ -51,7 +61,7 @@ class ConfigValueRepresentation {
 
     private String reinsertChars(String text, Queue<String> queue) {
         while (text.contains(SPECIALSTRING)) {
-            if(queue.peek() == null){
+            if (queue.peek() == null) {
                 LogManager.getLogger().warn("String replacement failed for " + text);
                 return text;
             }
@@ -96,5 +106,7 @@ class ConfigValueRepresentation {
         return ModID + type + String.join(".", categories) + name;
     }
 
-
+    public String getCustomPath() {
+        return customPath;
+    }
 }
