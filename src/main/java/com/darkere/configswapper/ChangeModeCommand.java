@@ -13,6 +13,7 @@ import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
 import net.minecraft.command.ISuggestionProvider;
 import net.minecraft.server.dedicated.DedicatedServer;
+import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.fml.network.PacketDistributor;
@@ -26,7 +27,10 @@ public class ChangeModeCommand {
             ISuggestionProvider.suggest(ConfigSwapper.modes, builder);
 
         event.getDispatcher().register(LiteralArgumentBuilder.<CommandSource>literal("mode")
-            .requires(player -> player.hasPermissionLevel(4))
+            .executes(ctx -> {
+                ctx.getSource().sendFeedback(new StringTextComponent("Available modes are: " + ConfigSwapper.modes.toString()), true);
+                return Command.SINGLE_SUCCESS;
+            })
             .then(Commands.argument("configmode", StringArgumentType.word())
                 .suggests(modeSuggestions)
                 .executes((ctx -> changeMode(ctx, StringArgumentType.getString(ctx, "configmode"), null)))
@@ -41,8 +45,21 @@ public class ChangeModeCommand {
             Message message = new LiteralMessage(mode + " is not an available mode");
             throw new CommandSyntaxException(new SimpleCommandExceptionType(message), message);
         }
+        if (context.getSource().getServer().isDedicatedServer()) {
+            if (!context.getSource().hasPermissionLevel(4)) {
+                context.getSource().sendFeedback(new StringTextComponent("Mode changing requires at least Permission Level 2"), true);
+                return Command.SINGLE_SUCCESS;
+            }
 
-        context.getSource().sendFeedback(new StringTextComponent("Changing mode to " + mode + ". Expect a large Lag spike"), true);
+        } else {
+
+            if (!context.getSource().getServer().getServerOwner().equals(context.getSource().asPlayer().getName().getString())) {
+                context.getSource().sendFeedback(new StringTextComponent("Mode changing can only be done by the host"), true);
+                return Command.SINGLE_SUCCESS;
+            }
+        }
+
+        context.getSource().sendFeedback(new StringTextComponent("Changing mode to " + mode + ". Expect a large Lag spike. A restart may be required apply all changes."), true);
 
         ModeConfig modeConfig = new ModeConfig(mode);
         modeConfig.applyMode();
