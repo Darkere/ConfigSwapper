@@ -58,8 +58,6 @@ public class ConfigParser {
         if (line.startsWith("customfilepath")) {
             filepath = line.split("=")[1];
             lines.remove(0);
-            if(!filepath.startsWith("config") && !filepath.startsWith("serverconfig"))
-                filepath = "custom file Paths need to start with config or serverconfig";
         } else {
             filepath = null;
         }
