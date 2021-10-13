@@ -13,7 +13,6 @@ import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
 import net.minecraft.command.ISuggestionProvider;
 import net.minecraft.server.dedicated.DedicatedServer;
-import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.fml.network.PacketDistributor;
@@ -59,7 +58,8 @@ public class ChangeModeCommand {
             }
         }
 
-        context.getSource().sendFeedback(new StringTextComponent("Changing mode to " + mode + ". Expect a large Lag spike. A restart may be required apply all changes."), true);
+        context.getSource().sendFeedback(new StringTextComponent("Changing mode to " + mode), true);
+        context.getSource().sendFeedback(new StringTextComponent("Expect a large Lag spike. A restart may be required apply all changes."), true);
 
         ModeConfig modeConfig = new ModeConfig(mode);
         modeConfig.applyMode();
@@ -67,7 +67,7 @@ public class ChangeModeCommand {
 
         if (context.getSource().getServer() instanceof DedicatedServer) {
             context.getSource().getServer().getPlayerList().getPlayers().forEach(
-                player -> ConfigSwapper.INSTANCE.send(PacketDistributor.PLAYER.with(() -> player), new ConfigChangeMessage(mode, backup)));
+                player -> ConfigSwapper.INSTANCE.send(PacketDistributor.PLAYER.with(() -> player), new ConfigChangeMessage(mode, true)));
         }
 
         context.getSource().getServer().getCommandManager().handleCommand(context.getSource(), "reload");

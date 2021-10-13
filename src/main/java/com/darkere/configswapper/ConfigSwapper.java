@@ -1,13 +1,16 @@
 package com.darkere.configswapper;
 
+import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.network.NetworkRegistry;
+import net.minecraftforge.fml.network.PacketDistributor;
 import net.minecraftforge.fml.network.simple.SimpleChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,6 +29,7 @@ public class ConfigSwapper {
 
     public ConfigSwapper() {
         MinecraftForge.EVENT_BUS.addListener(ChangeModeCommand::registerCommand);
+        MinecraftForge.EVENT_BUS.addListener(this::join);
         FMLJavaModLoadingContext.get().getModEventBus().register(this);
     }
 
@@ -41,7 +45,12 @@ public class ConfigSwapper {
         String mode = Utils.readWriteModeToJson(null);
         if (mode == null || !modes.contains(mode)) return;
         LOGGER.info("Applying configs for " + mode + " mode");
-        ModeConfig reloader = new ModeConfig(mode);
-        reloader.applyMode();
+        ModeConfig config = new ModeConfig(mode);
+        config.applyMode();
+    }
+
+    public void join(PlayerEvent.PlayerLoggedInEvent event) {
+        String currentMode = Utils.readWriteModeToJson(null);
+        ConfigSwapper.INSTANCE.send(PacketDistributor.PLAYER.with(() -> (ServerPlayerEntity) event.getPlayer()), new ConfigChangeMessage(currentMode, false));
     }
 }

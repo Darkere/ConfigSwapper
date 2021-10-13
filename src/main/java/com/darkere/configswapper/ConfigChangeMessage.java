@@ -10,24 +10,28 @@ import java.util.function.Supplier;
 
 public class ConfigChangeMessage {
     String mode;
-    String backup;
+    boolean force;
 
-    public ConfigChangeMessage(String mode, String backup) {
+    public ConfigChangeMessage(String mode, boolean force) {
         this.mode = mode;
-        this.backup = backup;
+        this.force = force;
     }
 
     public static void encode(ConfigChangeMessage data, PacketBuffer buf) {
         buf.writeString(data.mode);
-        buf.writeString(data.backup);
+        buf.writeBoolean(data.force);
     }
 
     public static ConfigChangeMessage decode(PacketBuffer buf) {
-        return new ConfigChangeMessage(buf.readString(), buf.readString());
+        return new ConfigChangeMessage(buf.readString(), buf.readBoolean());
     }
 
     public static boolean handle(ConfigChangeMessage data, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() -> {
+            if(!data.force && data.mode.equals(Utils.readWriteModeToJson(null))){
+                return;
+            }
+
             if (!Utils.readAvailableModes().contains(data.mode)) {
                 Minecraft.getInstance().player.sendMessage(new StringTextComponent("Missing data for config change!. Client configs will be out of sync."), new UUID(0, 0));
                 return;

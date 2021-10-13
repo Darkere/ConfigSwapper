@@ -61,6 +61,7 @@ public class Utils {
                     } else {
                         mode = written.getAsString();
                     }
+                    return mode;
                 }
                 json.addProperty("mode", mode);
                 Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -75,24 +76,5 @@ public class Utils {
             e.printStackTrace();
         }
         return mode;
-    }
-
-    @SuppressWarnings("unchecked")
-    static ConcurrentHashMap<String, Map<ModConfig.Type, ModConfig>> getModConfigsWithReflection() {
-        Field configsByMod = null;
-        try {
-            configsByMod = ConfigTracker.class.getDeclaredField("configsByMod");
-        } catch (NoSuchFieldException e) {
-            e.printStackTrace();
-        }
-        if (configsByMod != null) {
-            configsByMod.setAccessible(true);
-            try {
-                return (ConcurrentHashMap<String, Map<ModConfig.Type, ModConfig>>) configsByMod.get(ConfigTracker.INSTANCE);
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-            }
-        }
-        return null;
     }
 }

@@ -1,5 +1,12 @@
 package com.darkere.configswapper;
 
+import com.electronwill.nightconfig.core.CommentedConfig;
+import com.electronwill.nightconfig.core.ConfigFormat;
+import com.electronwill.nightconfig.core.UnmodifiableConfig;
+import com.electronwill.nightconfig.core.file.FileNotFoundAction;
+import com.electronwill.nightconfig.core.io.WritingMode;
+import com.electronwill.nightconfig.toml.TomlParser;
+import com.electronwill.nightconfig.toml.TomlWriter;
 import net.minecraft.world.storage.FolderName;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.loading.FMLPaths;
@@ -10,148 +17,84 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class ModeConfig {
-    Map<String, List<ConfigValueRepresentation>> configChanges;
-    Path configPath;
+    private final Path configPath;
     private static final Logger LOGGER = LogManager.getLogger();
+    private final TomlParser parser = new TomlParser();
+    private final TomlWriter writer = new TomlWriter();
 
     public ModeConfig(String mode) {
         configPath = FMLPaths.CONFIGDIR.get().resolve(ConfigSwapper.MODID + "/" + mode);
-        ConfigParser parser = new ConfigParser(configPath);
-        configChanges = parser.readModeFromConfigs();
     }
 
-    public void applyMode() {
-        ConcurrentHashMap<String, Map<ModConfig.Type, ModConfig>> modConfigs = Utils.getModConfigsWithReflection();
-        if (modConfigs == null) {
-            LOGGER.error("Cannot load Mod configs");
-            return;
-        }
-
-        //go through configChanges for each file
-        for (List<ConfigValueRepresentation> configuration : configChanges.values()) {
-
-            //Get the first, to read out which config file to apply this change too
-            ConfigValueRepresentation first = configuration.get(0);
-            Path configPath;
-            if (first.getCustomPath() == null) {
-                //Get config
-                Map<ModConfig.Type, ModConfig> modConfig = modConfigs.get(first.getModID());
-                if (modConfig == null) {
-                    LOGGER.warn("Cannot find config for mod " + first.getModID());
-                    continue;
-                }
-
-                ModConfig config = modConfig.get(first.getType());
-                if (config == null) {
-                    LOGGER.warn(first.getModID() + "does not have a config of type " + first.getType());
-                    continue;
-                }
-
-                if (config.getConfigData() == null) {
-                    LOGGER.debug(first.getModID() + " " + first.getType() + " has no data. Client config on server?");
-                    continue;
-                }
-
-                configPath = config.getFullPath();
-            } else {
-                configPath = getConfigPath(first.getCustomPath());
-                if (configPath == null) {
-                    LOGGER.warn("Could not find config for custom file path " + first.getCustomPath());
-                    continue; //go to next config
-                }
-
-            }
-
-
-            //read config
-            List<String> lines = readAllLinesInConfig(configPath);
-            if (lines == null) continue;
-
-
-            //Apply Changes to Config
-            configuration.forEach(configChange -> replaceConfig(lines, configChange));
-
-
-            //save config
-            try {
-                Files.write(configPath, lines, StandardOpenOption.WRITE);
-            } catch (IOException e) {
-                LOGGER.warn("Could not write to Config file" + configPath);
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private Path getConfigPath(String customPath) {
-        Path path = FMLPaths.GAMEDIR.get().resolve(customPath);
-        if (path.toFile().exists() && path.toFile().isFile()) {
-            return path;
-        }
-
-        Path worldPath = ServerLifecycleHooks.getCurrentServer().func_240776_a_(FolderName.field_237253_i_);
-        path = worldPath.resolve(customPath);
-        if (path.toFile().exists() && path.toFile().isFile()) {
-            return path;
-        }
-
-        return null;
-    }
-
-    private void replaceConfig(List<String> lines, ConfigValueRepresentation configChange) {
-        int depth = configChange.getCategories().size();
-        String category = configChange.getNextCategory();
-        int start = 0;
-        while (category != null) {
-
-            //Find Specified Category in config
-            for (int i = start; i < lines.size(); i++) {
-                String line = lines.get(i).trim();
-                if (line.startsWith("[" + category) || line.startsWith("[\"" + category)) {
-                    start = i;
-                    break;
-                }
-                if (i == lines.size() - 1) {
-                    LOGGER.warn("Could not find category " + category + " for config change " + configChange);
-                    return;
-                }
-            }
-            //Go to next
-            category = configChange.getNextCategory();
-        }
-        boolean found = false;
-        for (int i = start; i < lines.size(); i++) {
-            String sub = lines.get(i).trim();
-            if (sub.startsWith("#")) continue;
-            if (sub.startsWith(configChange.getName())) {
-                lines.set(i, getTabs(depth) + configChange.getName() + " = " + configChange.getValue());
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            LOGGER.warn("Could not find entry for" + configChange);
-        }
-    }
-
-    private String getTabs(int depth) {
-        StringBuilder tabs = new StringBuilder();
-        for (int i = 0; i < depth; i++) {
-            tabs.append("\t");
-        }
-        return tabs.toString();
-    }
-
-    private List<String> readAllLinesInConfig(Path fullPath) {
+    private void forAllFiles(Path folderPath, Consumer<Path> consumer) {
         try {
-            return Files.readAllLines(fullPath);
+            Files.list(folderPath).forEach(path -> {
+                if (path.toFile().isDirectory()) {
+                    if (path.equals(configPath.resolve("serverconfig"))) {
+                        if (ServerLifecycleHooks.getCurrentServer() != null) {
+                            path = ServerLifecycleHooks.getCurrentServer().func_240776_a_(FolderName.field_237253_i_).resolve("serverconfig");
+                        } else {
+                            return;
+                        }
+                    }
+                    forAllFiles(path, consumer);
+                } else {
+                    consumer.accept(path);
+                }
+            });
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return null;
+    }
+
+    private void applyConfigs(Path path) {
+        Path relativePath = configPath.relativize(path);
+        Path realConfigPath = FMLPaths.GAMEDIR.get().resolve(relativePath);
+        if (!realConfigPath.toFile().exists()) {
+            LOGGER.warn("Not config file found for " + path);
+            return;
+        }
+        CommentedConfig realConfig = parser.parse(realConfigPath, (file, configFormat) -> false);
+        CommentedConfig configChanges = parser.parse(path, (file, configFormat) -> false);
+
+        boolean changed = replaceValues(configChanges.valueMap(), realConfig.valueMap(), relativePath, "");
+        if (changed)
+            writer.write(realConfig, realConfigPath, WritingMode.REPLACE);
+
+    }
+
+    private boolean replaceValues(Map<String, Object> changes, Map<String, Object> reals, Path filePath, String configPath) {
+        boolean changed = false;
+        for (Map.Entry<String, Object> entry : changes.entrySet()) {
+            Object realObject = reals.get(entry.getKey());
+            if (realObject == null) {
+                LOGGER.warn("Config Swapper: Error in " + filePath + ". Real config does not have an entry called " + configPath + "." + entry.getKey());
+                continue;
+            }
+            if (entry.getValue() instanceof UnmodifiableConfig) {
+                if (!(realObject instanceof UnmodifiableConfig)) {
+                    LOGGER.warn("Config Swapper: Error in " + filePath + ". Real config differs in entry called " + configPath + "." + entry.getKey());
+                    continue;
+                }
+                if (replaceValues(((UnmodifiableConfig) entry.getValue()).valueMap(), ((UnmodifiableConfig) reals.get(entry.getKey())).valueMap(), filePath, configPath + (configPath.isEmpty() ? "" : ".") + entry.getKey()))
+                    changed = true;
+            } else {
+                reals.put(entry.getKey(), entry.getValue());
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+
+
+    public void applyMode() {
+        forAllFiles(configPath, this::applyConfigs);
     }
 }
