@@ -8,6 +8,8 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
+import net.minecraftforge.fml.event.server.FMLServerAboutToStartEvent;
+import net.minecraftforge.fml.event.server.FMLServerStartedEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.network.NetworkRegistry;
 import net.minecraftforge.fml.network.PacketDistributor;
@@ -30,6 +32,7 @@ public class ConfigSwapper {
     public ConfigSwapper() {
         MinecraftForge.EVENT_BUS.addListener(ChangeModeCommand::registerCommand);
         MinecraftForge.EVENT_BUS.addListener(this::join);
+        MinecraftForge.EVENT_BUS.addListener(this::serverStart);
         FMLJavaModLoadingContext.get().getModEventBus().register(this);
     }
 
@@ -40,13 +43,22 @@ public class ConfigSwapper {
     }
 
     @SubscribeEvent
-    public void complete(FMLLoadCompleteEvent event) {
+    public void finishedLoading(FMLLoadCompleteEvent event) {
         modes = Utils.readAvailableModes();
         String mode = Utils.readWriteModeToJson(null);
         if (mode == null || !modes.contains(mode)) return;
-        LOGGER.info("Applying configs for " + mode + " mode");
+        LOGGER.info("Applying client and common configs for " + mode + " mode");
         ModeConfig config = new ModeConfig(mode);
-        config.applyMode();
+        config.applyMode(false);
+    }
+
+    public void serverStart(FMLServerStartedEvent event) {
+        modes = Utils.readAvailableModes();
+        String mode = Utils.readWriteModeToJson(null);
+        if (mode == null || !modes.contains(mode)) return;
+        LOGGER.info("Applying server configs for " + mode + " mode");
+        ModeConfig config = new ModeConfig(mode);
+        config.applyMode(true);
     }
 
     public void join(PlayerEvent.PlayerLoggedInEvent event) {

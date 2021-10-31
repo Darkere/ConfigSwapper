@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -32,20 +33,19 @@ public class ModeConfig {
         configPath = FMLPaths.CONFIGDIR.get().resolve(ConfigSwapper.MODID + "/" + mode);
     }
 
-    private void forAllFiles(Path folderPath, Consumer<Path> consumer) {
+    private void forAllFiles(Path folderPath, BiConsumer<Path, Boolean> consumer, boolean serverconfig) {
         try {
             Files.list(folderPath).forEach(path -> {
                 if (path.toFile().isDirectory()) {
                     if (path.equals(configPath.resolve("serverconfig"))) {
                         if (ServerLifecycleHooks.getCurrentServer() != null) {
-                            path = ServerLifecycleHooks.getCurrentServer().func_240776_a_(FolderName.field_237253_i_).resolve("serverconfig");
-                        } else {
-                            return;
+                            forAllFiles(path, consumer, true);
                         }
+                    } else {
+                        forAllFiles(path, consumer, serverconfig);
                     }
-                    forAllFiles(path, consumer);
                 } else {
-                    consumer.accept(path);
+                    consumer.accept(path, serverconfig);
                 }
             });
         } catch (IOException e) {
@@ -53,9 +53,18 @@ public class ModeConfig {
         }
     }
 
-    private void applyConfigs(Path path) {
-        Path relativePath = configPath.relativize(path);
-        Path realConfigPath = FMLPaths.GAMEDIR.get().resolve(relativePath);
+    private void applyConfigs(Path path, boolean serverconfig) {
+        Path relativePath;
+        Path realConfigPath;
+
+        if (serverconfig) {
+            relativePath = configPath.relativize(path);
+            realConfigPath = ServerLifecycleHooks.getCurrentServer().func_240776_a_(FolderName.field_237253_i_).resolve(relativePath);
+        } else {
+            relativePath = configPath.relativize(path);
+            realConfigPath = FMLPaths.GAMEDIR.get().resolve(relativePath);
+        }
+
         if (!realConfigPath.toFile().exists()) {
             LOGGER.warn("Not config file found for " + path);
             return;
@@ -94,7 +103,7 @@ public class ModeConfig {
     }
 
 
-    public void applyMode() {
-        forAllFiles(configPath, this::applyConfigs);
+    public void applyMode(boolean onlyServer) {
+        forAllFiles(onlyServer ? configPath.resolve("serverconfig") : configPath, this::applyConfigs, false);
     }
 }
