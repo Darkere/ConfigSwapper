@@ -1,13 +1,14 @@
 package com.darkere.configswapper;
 
 import com.electronwill.nightconfig.core.CommentedConfig;
-import com.electronwill.nightconfig.core.ConfigFormat;
 import com.electronwill.nightconfig.core.UnmodifiableConfig;
-import com.electronwill.nightconfig.core.file.FileNotFoundAction;
+import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.electronwill.nightconfig.core.io.WritingMode;
 import com.electronwill.nightconfig.toml.TomlParser;
 import com.electronwill.nightconfig.toml.TomlWriter;
 import net.minecraft.world.storage.FolderName;
+import net.minecraftforge.fml.config.ConfigFileTypeHandler;
+import net.minecraftforge.fml.config.ConfigTracker;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.fml.server.ServerLifecycleHooks;
@@ -15,21 +16,29 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.function.Function;
+
 
 public class ModeConfig {
     private final Path configPath;
     private static final Logger LOGGER = LogManager.getLogger();
     private final TomlParser parser = new TomlParser();
     private final TomlWriter writer = new TomlWriter();
+    private String mode;
+    ConcurrentHashMap<String, ModConfig> fileMap;
+    Constructor<?> ReloadingEvent;
+    Method fireEvent;
 
     public ModeConfig(String mode) {
+        this.mode = mode;
         configPath = FMLPaths.CONFIGDIR.get().resolve(ConfigSwapper.MODID + "/" + mode);
     }
 
@@ -66,16 +75,40 @@ public class ModeConfig {
         }
 
         if (!realConfigPath.toFile().exists()) {
-            LOGGER.warn("Not config file found for " + path);
+            LOGGER.warn("No config file found for " + path);
+            LOGGER.warn("Expected config at " + realConfigPath);
             return;
         }
+
         CommentedConfig realConfig = parser.parse(realConfigPath, (file, configFormat) -> false);
         CommentedConfig configChanges = parser.parse(path, (file, configFormat) -> false);
 
         boolean changed = replaceValues(configChanges.valueMap(), realConfig.valueMap(), relativePath, "");
-        if (changed)
+        if (changed) {
             writer.write(realConfig, realConfigPath, WritingMode.REPLACE);
-
+            ModConfig config = fileMap.get(realConfigPath.getFileName().toString());
+            if (config != null) {
+                if (config.getConfigData() instanceof CommentedFileConfig) {
+                    ((CommentedFileConfig) config.getConfigData()).load();
+                    if (!config.getSpec().isCorrect(config.getConfigData())) {
+                        LOGGER.warn("Config was invalid after applying " + mode + " mode to it. Resetting " + realConfigPath);
+                        ConfigFileTypeHandler.backUpConfig((CommentedFileConfig) config.getConfigData());
+                        config.getSpec().correct(config.getConfigData());
+                        config.save();
+                    }
+                    config.getSpec().afterReload();
+                    try {
+                        Class<?> aClass = Class.forName("net.minecraftforge.fml.config.ModConfig$Reloading");
+                        ReloadingEvent = aClass.getDeclaredConstructor(ModConfig.class);
+                        ReloadingEvent.setAccessible(true);
+                        fireEvent.invoke(config, ReloadingEvent.newInstance(config));
+                    } catch (IllegalAccessException | InstantiationException | InvocationTargetException | ClassNotFoundException | NoSuchMethodException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            LOGGER.info("Applied " + mode + " mode to " + realConfigPath.getFileName());
+        }
     }
 
     private boolean replaceValues(Map<String, Object> changes, Map<String, Object> reals, Path filePath, String configPath) {
@@ -104,6 +137,25 @@ public class ModeConfig {
 
 
     public void applyMode(boolean onlyServer) {
-        forAllFiles(onlyServer ? configPath.resolve("serverconfig") : configPath, this::applyConfigs, false);
+        try {
+            GetConfigFileMapViaReflection();
+        } catch (NoSuchMethodException | IllegalAccessException | NoSuchFieldException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        forAllFiles(onlyServer ? configPath.resolve("serverconfig") : configPath, this::applyConfigs, onlyServer);
+        fileMap = null;
+
+
     }
+    @SuppressWarnings("Unchecked cast")
+    private void GetConfigFileMapViaReflection() throws NoSuchMethodException, IllegalAccessException, NoSuchFieldException, ClassNotFoundException {
+        Field field = ConfigTracker.class.getDeclaredField("fileMap");
+        field.setAccessible(true);
+        fileMap = (ConcurrentHashMap<String, ModConfig>) field.get(ConfigTracker.INSTANCE);
+        fireEvent = ModConfig.class.getDeclaredMethod("fireEvent", ModConfig.ModConfigEvent.class);
+        fireEvent.setAccessible(true);
+    }
+
+
 }

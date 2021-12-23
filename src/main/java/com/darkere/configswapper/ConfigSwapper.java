@@ -59,8 +59,7 @@ public class ConfigSwapper {
         LOGGER.info("Applying server configs for " + mode + " mode");
         ModeConfig config = new ModeConfig(mode);
         config.applyMode(true);
-    }
-
+}
     public void join(PlayerEvent.PlayerLoggedInEvent event) {
         String currentMode = Utils.readWriteModeToJson(null);
         ConfigSwapper.INSTANCE.send(PacketDistributor.PLAYER.with(() -> (ServerPlayerEntity) event.getPlayer()), new ConfigChangeMessage(currentMode, false));
