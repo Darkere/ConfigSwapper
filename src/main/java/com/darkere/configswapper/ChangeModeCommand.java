@@ -67,7 +67,7 @@ public class ChangeModeCommand {
                 context.getSource().sendFeedback(new StringTextComponent("Expect a large Lag spike. A restart may be required apply all changes."), true);
 
             ModeConfig modeConfig = new ModeConfig(mode);
-            modeConfig.applyMode(false);
+            modeConfig.applyMode();
             Utils.readWriteModeToJson(mode);
 
             if (context.getSource().getServer() instanceof DedicatedServer) {

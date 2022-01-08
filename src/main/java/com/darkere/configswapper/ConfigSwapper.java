@@ -44,22 +44,26 @@ public class ConfigSwapper {
 
     @SubscribeEvent
     public void finishedLoading(FMLLoadCompleteEvent event) {
-        modes = Utils.readAvailableModes();
-        String mode = Utils.readWriteModeToJson(null);
-        if (mode == null || !modes.contains(mode)) return;
-        LOGGER.info("Applying client and common configs for " + mode + " mode");
-        ModeConfig config = new ModeConfig(mode);
-        config.applyMode(false);
+        event.enqueueWork(() -> {
+                modes = Utils.readAvailableModes();
+                String mode = Utils.readWriteModeToJson(null);
+                if (mode == null || !modes.contains(mode)) return;
+                LOGGER.info("Applying client and common configs for " + mode + " mode");
+                ModeConfig config = new ModeConfig(mode);
+                config.applyMode();
+            }
+        );
     }
 
     public void serverStart(FMLServerStartedEvent event) {
         modes = Utils.readAvailableModes();
         String mode = Utils.readWriteModeToJson(null);
         if (mode == null || !modes.contains(mode)) return;
-        LOGGER.info("Applying server configs for " + mode + " mode");
+        LOGGER.info("Applying configs for " + mode + " mode");
         ModeConfig config = new ModeConfig(mode);
-        config.applyMode(true);
-}
+        config.applyMode();
+    }
+
     public void join(PlayerEvent.PlayerLoggedInEvent event) {
         String currentMode = Utils.readWriteModeToJson(null);
         ConfigSwapper.INSTANCE.send(PacketDistributor.PLAYER.with(() -> (ServerPlayerEntity) event.getPlayer()), new ConfigChangeMessage(currentMode, false));

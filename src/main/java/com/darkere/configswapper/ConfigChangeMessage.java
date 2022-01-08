@@ -37,7 +37,7 @@ public class ConfigChangeMessage {
                 return;
             }
             ModeConfig modeConfig = new ModeConfig(data.mode);
-            modeConfig.applyMode(false);
+            modeConfig.applyMode();
             Utils.readWriteModeToJson(data.mode);
         });
         ctx.get().setPacketHandled(true);
