@@ -21,8 +21,10 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -84,7 +86,17 @@ public class ModeConfig {
             LOGGER.warn("Expected config at " + realConfigPath);
             return;
         }
-
+        if(!realConfigPath.getFileName().toString().endsWith(".toml")){
+            LOGGER.info(realConfigPath + " is not a .toml config!");
+            LOGGER.info("Using fallback file replacement for " + realConfigPath);
+            try {
+                Files.copy(path, realConfigPath, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                LOGGER.error("Failed to replace " + realConfigPath);
+                LOGGER.error(e);
+            }
+            return;
+        }
         CommentedConfig realConfig = parser.parse(realConfigPath, (file, configFormat) -> false);
         CommentedConfig configChanges = parser.parse(path, (file, configFormat) -> false);
 

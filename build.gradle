@@ -13,7 +13,7 @@ apply plugin: 'net.minecraftforge.gradle'
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 
-version = '2.5'
+version = '2.6'
 group = 'com.darkere.configswapper' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = 'configswapper'
 
@@ -38,7 +38,7 @@ minecraft {
             workingDirectory project.file('run')
 
             // Recommended logging data for a userdev environment
-            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
+            property 'forge.logging.markers', 'SCAN'
 
             // Recommended logging level for the console
             property 'forge.logging.console.level', 'debug'
