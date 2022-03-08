@@ -21,7 +21,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -82,8 +81,10 @@ public class ModeConfig {
         }
 
         if (!realConfigPath.toFile().exists()) {
-            LOGGER.warn("No config file found for " + path);
-            LOGGER.warn("Expected config at " + realConfigPath);
+            if(ConfigSwapper.afterConstructor){
+                LOGGER.warn("No config file found for " + path);
+                LOGGER.warn("Expected config at " + realConfigPath);
+            }
             return;
         }
         if(!realConfigPath.getFileName().toString().endsWith(".toml")){
@@ -100,9 +101,10 @@ public class ModeConfig {
         CommentedConfig realConfig = parser.parse(realConfigPath, (file, configFormat) -> false);
         CommentedConfig configChanges = parser.parse(path, (file, configFormat) -> false);
 
-        if (!isCorrect(realConfigPath)) {
-            return;
-        }
+        if (ConfigSwapper.afterConstructor)
+            if (!isCorrect(realConfigPath))
+                return;
+
 
         LOGGER.info("Checking if " + realConfigPath.getFileName() + " requires Changes");
         boolean changed = replaceValues(configChanges.valueMap(), realConfig.valueMap(), relativePath, "");
@@ -159,6 +161,8 @@ public class ModeConfig {
             return false;
         }
         writer.write(realConfig, realConfigPath, WritingMode.REPLACE);
+        if(!ConfigSwapper.afterConstructor)
+            return true;
 
         ModConfig config = findModConfig(realConfigPath.getFileName().toString());
         if (config != null) {

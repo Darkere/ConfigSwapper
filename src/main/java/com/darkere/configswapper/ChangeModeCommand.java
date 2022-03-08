@@ -13,6 +13,7 @@ import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
 import net.minecraft.command.ISuggestionProvider;
 import net.minecraft.server.dedicated.DedicatedServer;
+import net.minecraft.util.Util;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.fml.network.PacketDistributor;
@@ -29,7 +30,10 @@ public class ChangeModeCommand {
 
         event.getDispatcher().register(LiteralArgumentBuilder.<CommandSource>literal("mode")
             .executes(ctx -> {
+                String mode = Utils.readWriteModeToJson(null);
+                ctx.getSource().sendFeedback(new StringTextComponent("You are currently in mode: " + mode), true);
                 ctx.getSource().sendFeedback(new StringTextComponent("Available modes are: " + ConfigSwapper.modes.toString()), true);
+
                 return Command.SINGLE_SUCCESS;
             })
             .then(Commands.argument("configmode", StringArgumentType.word())

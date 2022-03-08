@@ -8,7 +8,6 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
-import net.minecraftforge.fml.event.server.FMLServerAboutToStartEvent;
 import net.minecraftforge.fml.event.server.FMLServerStartedEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.network.NetworkRegistry;
@@ -28,12 +27,15 @@ public class ConfigSwapper {
     private static final ResourceLocation CHANNELID = new ResourceLocation(MODID, "network");
     public static SimpleChannel INSTANCE;
     private int ID;
+    public static boolean afterConstructor = false;
 
     public ConfigSwapper() {
         MinecraftForge.EVENT_BUS.addListener(ChangeModeCommand::registerCommand);
         MinecraftForge.EVENT_BUS.addListener(this::join);
         MinecraftForge.EVENT_BUS.addListener(this::serverStart);
         FMLJavaModLoadingContext.get().getModEventBus().register(this);
+        updateMode(true);
+        afterConstructor = true;
     }
 
     @SubscribeEvent
@@ -45,21 +47,21 @@ public class ConfigSwapper {
     @SubscribeEvent
     public void finishedLoading(FMLLoadCompleteEvent event) {
         event.enqueueWork(() -> {
-                modes = Utils.readAvailableModes();
-                String mode = Utils.readWriteModeToJson(null);
-                if (mode == null || !modes.contains(mode)) return;
-                LOGGER.info("Applying client and common configs for " + mode + " mode");
-                ModeConfig config = new ModeConfig(mode);
-                config.applyMode();
+               updateMode(false);
             }
         );
     }
 
     public void serverStart(FMLServerStartedEvent event) {
+        updateMode(false);
+    }
+
+    private void updateMode(boolean limited) {
         modes = Utils.readAvailableModes();
         String mode = Utils.readWriteModeToJson(null);
         if (mode == null || !modes.contains(mode)) return;
         LOGGER.info("Applying configs for " + mode + " mode");
+        if(limited) LOGGER.info("This (the first) swap is limited and does not log all errors or correct failed files");
         ModeConfig config = new ModeConfig(mode);
         config.applyMode();
     }
