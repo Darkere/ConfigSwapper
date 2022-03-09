@@ -77,4 +77,36 @@ public class Utils {
         }
         return mode;
     }
+
+    public static String readDefaultMode() {
+        File defaultModeFile = FMLPaths.CONFIGDIR.get().resolve("configswapper.json").toFile();
+        try {
+            if (!defaultModeFile.exists()) {
+                if(!defaultModeFile.createNewFile()){
+                    return "none";
+                }
+                FileWriter writer = null;
+
+                writer = new FileWriter(defaultModeFile);
+
+                writer.write("{ \"defaultmode\":\"none\"}");
+                writer.flush();
+                writer.close();
+            }
+
+            JsonParser parser = new JsonParser();
+            JsonObject json = parser.parse(new FileReader(defaultModeFile)).getAsJsonObject();
+            if(json != null){
+                JsonElement defaultMode = json.get("defaultmode");
+                if(defaultMode != null){
+                    return defaultMode.getAsString();
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return "none";
+    }
+
 }

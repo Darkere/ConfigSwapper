@@ -10,6 +10,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.event.server.FMLServerStartedEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.fml.network.NetworkRegistry;
 import net.minecraftforge.fml.network.PacketDistributor;
 import net.minecraftforge.fml.network.simple.SimpleChannel;
@@ -47,7 +48,7 @@ public class ConfigSwapper {
     @SubscribeEvent
     public void finishedLoading(FMLLoadCompleteEvent event) {
         event.enqueueWork(() -> {
-               updateMode(false);
+                updateMode(false);
             }
         );
     }
@@ -59,9 +60,20 @@ public class ConfigSwapper {
     private void updateMode(boolean limited) {
         modes = Utils.readAvailableModes();
         String mode = Utils.readWriteModeToJson(null);
-        if (mode == null || !modes.contains(mode)) return;
+        String defaultMode = Utils.readDefaultMode();
+        if (mode == null || !modes.contains(mode)) {
+            if (modes.contains(defaultMode)) {
+                mode = defaultMode;
+                Utils.readWriteModeToJson(defaultMode);
+            }
+        }
+        if (mode == null || !modes.contains(mode)){
+            LOGGER.info("Default Mode is set to " + defaultMode + ". " + defaultMode + " is not a valid mode.");
+            return;
+        }
         LOGGER.info("Applying configs for " + mode + " mode");
-        if(limited) LOGGER.info("This (the first) swap is limited and does not log all errors or correct failed files");
+        if (limited)
+            LOGGER.info("This (the first) swap is limited and does not log all errors or correct failed files");
         ModeConfig config = new ModeConfig(mode);
         config.applyMode();
     }
