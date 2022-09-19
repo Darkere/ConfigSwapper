@@ -7,12 +7,14 @@ import com.electronwill.nightconfig.core.io.ParsingException;
 import com.electronwill.nightconfig.core.io.WritingMode;
 import com.electronwill.nightconfig.toml.TomlParser;
 import com.electronwill.nightconfig.toml.TomlWriter;
-import net.minecraft.world.storage.FolderName;
+import net.minecraft.world.level.storage.LevelResource;
 import net.minecraftforge.fml.config.ConfigFileTypeHandler;
 import net.minecraftforge.fml.config.ConfigTracker;
+import net.minecraftforge.fml.config.IConfigEvent;
 import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.minecraftforge.fml.loading.FMLPaths;
-import net.minecraftforge.fml.server.ServerLifecycleHooks;
+import net.minecraftforge.server.ServerLifecycleHooks;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -74,7 +76,7 @@ public class ModeConfig {
 
         if (serverconfig) {
             relativePath = configPath.relativize(path);
-            realConfigPath = ServerLifecycleHooks.getCurrentServer().func_240776_a_(FolderName.field_237253_i_).resolve(relativePath);
+            realConfigPath = ServerLifecycleHooks.getCurrentServer().getWorldPath(LevelResource.ROOT).resolve(relativePath);
         } else {
             relativePath = configPath.relativize(path);
             realConfigPath = FMLPaths.GAMEDIR.get().resolve(relativePath);
@@ -276,7 +278,7 @@ public class ModeConfig {
         Field field = ConfigTracker.class.getDeclaredField("fileMap");
         field.setAccessible(true);
         fileMap = (ConcurrentHashMap<String, ModConfig>) field.get(ConfigTracker.INSTANCE);
-        fireEvent = ModConfig.class.getDeclaredMethod("fireEvent", ModConfig.ModConfigEvent.class);
+        fireEvent = ModConfig.class.getDeclaredMethod("fireEvent", IConfigEvent.class);
         fireEvent.setAccessible(true);
     }
 

@@ -1,9 +1,9 @@
 package com.darkere.configswapper;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.text.StringTextComponent;
-import net.minecraftforge.fml.network.NetworkEvent;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraftforge.network.NetworkEvent;
 
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -17,13 +17,13 @@ public class ConfigChangeMessage {
         this.force = force;
     }
 
-    public static void encode(ConfigChangeMessage data, PacketBuffer buf) {
-        buf.writeString(data.mode);
+    public static void encode(ConfigChangeMessage data, FriendlyByteBuf buf) {
+        buf.writeUtf(data.mode);
         buf.writeBoolean(data.force);
     }
 
-    public static ConfigChangeMessage decode(PacketBuffer buf) {
-        return new ConfigChangeMessage(buf.readString(), buf.readBoolean());
+    public static ConfigChangeMessage decode(FriendlyByteBuf buf) {
+        return new ConfigChangeMessage(buf.readUtf(), buf.readBoolean());
     }
 
     public static boolean handle(ConfigChangeMessage data, Supplier<NetworkEvent.Context> ctx) {
@@ -33,7 +33,7 @@ public class ConfigChangeMessage {
             }
 
             if (!Utils.readAvailableModes().contains(data.mode)) {
-                Minecraft.getInstance().player.sendMessage(new StringTextComponent("Missing data for config change!. Client configs will be out of sync."), new UUID(0, 0));
+                Minecraft.getInstance().player.sendSystemMessage(Component.literal("Missing data for config change!. Client configs will be out of sync."));
                 return;
             }
             ModeConfig modeConfig = new ModeConfig(data.mode);

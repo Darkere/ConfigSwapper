@@ -1,1 +1,6 @@
-rootProject.name = 'ConfigSwapper'
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven { url = 'https://maven.minecraftforge.net/' }
+    }
+}
