@@ -8,9 +8,9 @@ import com.electronwill.nightconfig.core.io.WritingMode;
 import com.electronwill.nightconfig.toml.TomlParser;
 import com.electronwill.nightconfig.toml.TomlWriter;
 import net.minecraft.world.level.storage.LevelResource;
+import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.config.ConfigFileTypeHandler;
 import net.minecraftforge.fml.config.ConfigTracker;
-import net.minecraftforge.fml.config.IConfigEvent;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.minecraftforge.fml.loading.FMLPaths;
@@ -19,17 +19,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 
 
@@ -39,9 +34,6 @@ public class ModeConfig {
     private final TomlParser parser = new TomlParser();
     private final TomlWriter writer = new TomlWriter();
     private String mode;
-    ConcurrentHashMap<String, ModConfig> fileMap;
-    Constructor<?> ReloadingEvent;
-    Method fireEvent;
     private static final int MAX_ATTEMPTS = 5;
     List<Runnable> runnables = new ArrayList<>();
 
@@ -148,7 +140,7 @@ public class ModeConfig {
     }
 
     private ModConfig findModConfig(String configFileName) {
-        for (Map.Entry<String, ModConfig> entry : fileMap.entrySet()) {
+        for (Map.Entry<String, ModConfig> entry : ConfigTracker.INSTANCE.fileMap().entrySet()) {
             if (entry.getKey().endsWith(configFileName)) {
                 return entry.getValue();
             }
@@ -194,14 +186,9 @@ public class ModeConfig {
 
                     //reload config
                     config.getSpec().afterReload();
-                    try {
-                        Class<?> aClass = Class.forName("net.minecraftforge.fml.config.ModConfig$Reloading");
-                        ReloadingEvent = aClass.getDeclaredConstructor(ModConfig.class);
-                        ReloadingEvent.setAccessible(true);
-                        fireEvent.invoke(config, ReloadingEvent.newInstance(config));
-                    } catch (IllegalAccessException | InstantiationException | InvocationTargetException | ClassNotFoundException | NoSuchMethodException e) {
-                        e.printStackTrace();
-                    }
+                    var event = new ModConfigEvent.Reloading(config);
+                    var container = ModList.get().getModContainerById(config.getModId());
+                    container.ifPresent(c->c.dispatchConfigEvent(event));
                 } else {
                     runnables.add(() -> {
                         LOGGER.info("Reattempting overwrite for " + realConfigPath.getFileName());
@@ -246,17 +233,11 @@ public class ModeConfig {
 
 
     public void applyMode() {
-        try {
-            GetConfigFileMapViaReflection();
-        } catch (NoSuchMethodException | IllegalAccessException | NoSuchFieldException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
+
 
         forAllFiles(configPath, this::applyConfigs, false);
         while (!runnables.isEmpty())
             runRunnables();
-
-        fileMap = null;
     }
 
     private void runRunnables() {
@@ -273,14 +254,6 @@ public class ModeConfig {
         }
     }
 
-    @SuppressWarnings("Unchecked cast")
-    private void GetConfigFileMapViaReflection() throws NoSuchMethodException, IllegalAccessException, NoSuchFieldException, ClassNotFoundException {
-        Field field = ConfigTracker.class.getDeclaredField("fileMap");
-        field.setAccessible(true);
-        fileMap = (ConcurrentHashMap<String, ModConfig>) field.get(ConfigTracker.INSTANCE);
-        fireEvent = ModConfig.class.getDeclaredMethod("fireEvent", IConfigEvent.class);
-        fireEvent.setAccessible(true);
-    }
 
 
 }
