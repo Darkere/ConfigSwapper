@@ -50,14 +50,14 @@ public class ChangeModeCommand {
             }
 
             if (context.getSource().getServer().isDedicatedServer()) {
-                if (!context.getSource().hasPermission(4)) {
+                if (!context.getSource().hasPermission(2)) {
                     context.getSource().sendSuccess(Component.literal("Mode changing requires at least Permission Level 2"), true);
                     return Command.SINGLE_SUCCESS;
                 }
 
             } else {
 
-                if (!context.getSource().getServer().getSingleplayerProfile().getName().equals(context.getSource().getPlayerOrException().getName().getString())) {
+                if (context.getSource().isPlayer() && !context.getSource().getServer().getSingleplayerProfile().getName().equals(context.getSource().getPlayerOrException().getName().getString())) {
                     context.getSource().sendSuccess(Component.literal("Mode changing can only be done by the host"), true);
                     return Command.SINGLE_SUCCESS;
                 }
